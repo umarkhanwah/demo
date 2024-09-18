@@ -1,13 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Realtime location tracker</title>
-
-    <!-- leaflet css  -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <title>Geolocation</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
 
     <style>
         body {
@@ -15,64 +12,83 @@
             padding: 0;
         }
 
+        #btn {
+            position: fixed;
+            top: 40vh;
+            left: 30vw;
+            z-index: 2;
+            padding: 10px;
+            background: red;
+            color: white;
+            font-weight: bold;
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 0 10px 10px red;
+            cursor: pointer;
+        }
+
         #map {
-            width: 100%;
-            height: 100vh;
+            z-index: 1;
         }
     </style>
+
 </head>
 
 <body>
-    <div id="map"></div>
-</body>
-</html>
+    <div id="map" style="width:100%; height: 100vh"></div>
+    <button id="btn">Call Ambulance</button>
+    <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
-<!-- leaflet js  -->
-<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-<script>
-    // Map initialization 
-    var map = L.map('map').setView([14.0860746, 100.608406], 6);
+    <script>
+        var map = L.map('map').setView([24.8174, 67.1113], 11);
+        mapLink = "<a href='http://openstreetmap.org'>OpenStreetMap</a>";
+        L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+            attribution: 'Leaflet &copy; ' + mapLink + ', contribution',
+            maxZoom: 18
+        }).addTo(map);
 
-    //osm layer
-    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    });
-    osm.addTo(map);
+        var ambulanceIcon = L.icon({
+            iconUrl: 'img/ambulance.png',
+            iconSize: [70, 70]
+        });
 
-    if(!navigator.geolocation) {
-        alert("Your browser doesn't support geolocation feature!")
-    } else {
-            navigator.geolocation.getCurrentPosition(getPosition)
+        var marker = L.marker([24.8174, 67.1113], { icon: ambulanceIcon }).addTo(map);
+
+        var btn = document.getElementById("btn");
+        btn.addEventListener('click', function () {
+            navigator.geolocation.getCurrentPosition(function (position) {
+                var userLat = position.coords.latitude;
+                var userLng = position.coords.longitude;
+
+                var newMarker = L.marker([userLat, userLng]).addTo(map);
                 
-        setInterval(() => {
-            navigator.geolocation.getCurrentPosition(getPosition)
-        }, 10000);
-    }
+                var routeControl = L.Routing.control({
+                    waypoints: [
+                        L.latLng(24.8174, 67.1113), // ambulance initial position
+                        L.latLng(userLat, userLng) // user's current position
+                    ],
+                    createMarker: function(i, waypoint, n) {
+                        if (i === 0) {
+                            return L.marker(waypoint.latLng, { icon: ambulanceIcon });
+                        } else {
+                            return L.marker(waypoint.latLng);
+                        }
+                    }
+                }).addTo(map);
 
-    var marker, circle;
+                routeControl.on('routesfound', function (e) {
+                    var routes = e.routes[0].coordinates;
+                    routes.forEach(function (coord, index) {
+                        setTimeout(function () {
+                            marker.setLatLng([coord.lat, coord.lng]);
+                        }, 100 * index);
+                    });
+                });
+            });
+        });
+    </script>
 
-    function getPosition(position){
-        // console.log(position)
-        var lat = position.coords.latitude
-        var long = position.coords.longitude
-        var accuracy = position.coords.accuracy
+</body>
 
-        if(marker) {
-            map.removeLayer(marker)
-        }
-
-        if(circle) {
-            map.removeLayer(circle)
-        }
-
-        marker = L.marker([lat, long])
-        circle = L.circle([lat, long], {radius: accuracy})
-
-        var featureGroup = L.featureGroup([marker, circle]).addTo(map)
-
-        map.fitBounds(featureGroup.getBounds())
-
-        console.log("Your coordinate is: Lat: "+ lat +" Long: "+ long+ " Accuracy: "+ accuracy)
-    }
-
-</script>
+</html>
