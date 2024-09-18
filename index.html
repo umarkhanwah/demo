@@ -42,7 +42,8 @@
     if(!navigator.geolocation) {
         alert("Your browser doesn't support geolocation feature!")
     } else {
-        
+            navigator.geolocation.getCurrentPosition(getPosition)
+                
         setInterval(() => {
             navigator.geolocation.getCurrentPosition(getPosition)
         }, 10000);
